@@ -49,7 +49,7 @@ function migrateConfigSettings(config) {
         };
     }
 
-    // ���保 prefixConfig 的所有字段都存在
+    // 确保 prefixConfig 的所有字段都存在
     if (!migratedConfig.prefixConfig.hasOwnProperty('enableManualNodes')) {
         migratedConfig.prefixConfig.enableManualNodes = migratedConfig.prependSubName ?? true;
     }
@@ -201,7 +201,7 @@ export async function handleMisubRequest(context) {
             }
         }
 
-        context.waitUntil(sendEnhancedTgNotification(config, '🛰️ *订阅被访问*', clientIp, additionalData));
+        context.waitUntil(sendEnhancedTgNotification(config, '🟢 *订阅被访问*', clientIp, additionalData));
     }
 
     let prependedContentForSubconverter = '';
