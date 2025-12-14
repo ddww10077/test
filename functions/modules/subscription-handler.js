@@ -3,6 +3,7 @@
  * 处理MiSub订阅请求的主要逻辑
  */
 
+import yaml from 'js-yaml';
 import { StorageFactory } from '../storage-adapter.js';
 import { migrateConfigSettings, formatBytes, getCallbackToken } from './utils.js';
 import { generateCombinedNodeList, defaultSettings } from './subscription.js';
@@ -239,23 +240,62 @@ ss://YWVzLTI1Ni1nY206MDAwMDAwMDAwMDAwMDAwMA==@127.0.0.1:443#🇨🇳 微信 VIP4
     subconverterUrl.searchParams.set('new_name', 'true');
 
     try {
-        const subconverterResponse = await fetch(subconverterUrl.toString(), {
-            method: 'GET',
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-        });
-        if (!subconverterResponse.ok) {
-            const errorBody = await subconverterResponse.text();
-            throw new Error(`Subconverter service returned status: ${subconverterResponse.status}. Body: ${errorBody}`);
-        }
-        const responseText = await subconverterResponse.text();
-
-        const responseHeaders = new Headers(subconverterResponse.headers);
-        responseHeaders.set("Content-Disposition", `attachment; filename*=utf-8''${encodeURIComponent(subName)}`);
-        responseHeaders.set('Content-Type', 'text/plain; charset=utf-8');
-        responseHeaders.set('Cache-Control', 'no-store, no-cache');
-        return new Response(responseText, { status: subconverterResponse.status, statusText: subconverterResponse.statusText, headers: responseHeaders });
-    } catch (error) {
-        console.error(`[MiSub Final Error] ${error.message}`);
-        return new Response(`Error connecting to subconverter: ${error.message}`, { status: 502 });
+    const subconverterResponse = await fetch(subconverterUrl.toString(), {
+        method: 'GET',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+    });
+    if (!subconverterResponse.ok) {
+        const errorBody = await subconverterResponse.text();
+        throw new Error(`Subconverter service returned status: ${subconverterResponse.status}. Body: ${errorBody}`);
     }
+
+    const responseText = await subconverterResponse.text();
+
+    const responseHeaders = new Headers(subconverterResponse.headers);
+    responseHeaders.set(
+        "Content-Disposition",
+        `attachment; filename*=utf-8''${encodeURIComponent(subName)}`
+    );
+    responseHeaders.set('Content-Type', 'text/plain; charset=utf-8');
+    responseHeaders.set('Cache-Control', 'no-store, no-cache');
+
+    /* ===== 最小侵入补丁：开始 ===== */
+    let finalBody = responseText;
+
+    // 仅在 Clash 格式下，且 YAML 可解析时注入
+    if (targetFormat === 'clash') {
+        try {
+            const cfg = yaml.load(responseText);
+
+            if (cfg && Array.isArray(cfg.proxies)) {
+                for (const p of cfg.proxies) {
+                    if (
+                        p.type === 'vless' &&
+                        (
+                            p.flow === 'xtls-rprx-vision' ||
+                            p.flow === 'xtls-rprx-vision-udp443' ||
+                            p.tls === true
+                        )
+                    ) {
+                        p['skip-cert-verify'] = true;
+                    }
+                }
+                finalBody = yaml.dump(cfg, { lineWidth: -1 });
+            }
+        } catch (_) {
+            // 解析失败直接回退，保持原行为
+            finalBody = responseText;
+        }
+    }
+    /* ===== 最小侵入补丁：结束 ===== */
+
+    return new Response(finalBody, {
+        status: subconverterResponse.status,
+        statusText: subconverterResponse.statusText,
+        headers: responseHeaders
+    });
+} catch (error) {
+    console.error(`[MiSub Final Error] ${error.message}`);
+    return new Response(`Error connecting to subconverter: ${error.message}`, { status: 502 });
+}
 }
