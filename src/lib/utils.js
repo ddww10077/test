@@ -15,29 +15,18 @@ export function extractNodeName(url) {
         const mainPart = url.substring(protocolIndex + 3).split('#')[0];
         switch (protocol) {
             case 'vmess': {
-                // 修正：使用现代方法正确解码包含UTF-8字符的Base64
                 let padded = mainPart.padEnd(mainPart.length + (4 - mainPart.length % 4) % 4, '=');
                 let ps = '';
                 try {
-                    // 1. 使用 atob 将 Base64 解码为二进制字符串
                     const binaryString = atob(padded);
-                    
-                    // 2. 将二进制字符串转换为 Uint8Array 字节数组
                     const bytes = new Uint8Array(binaryString.length);
                     for (let i = 0; i < binaryString.length; i++) {
                         bytes[i] = binaryString.charCodeAt(i);
                     }
-                    
-                    // 3. 使用 TextDecoder 将字节解码为正确的 UTF-8 字符串
                     const jsonString = new TextDecoder('utf-8').decode(bytes);
-                    
-                    // 4. 解析 JSON
                     const node = JSON.parse(jsonString);
-                    
-                    // 5. 直接获取节点名称，此时已是正确解码的字符串，无需再次处理
                     ps = node.ps || '';
                 } catch (e) {
-                    // 如果解码失败，可以保留一个回退逻辑，或者直接返回空字符串
                     console.error("Failed to decode vmess link:", e);
                 }
                 return ps;
@@ -48,7 +37,6 @@ export function extractNodeName(url) {
                 const atIndexSS = mainPart.indexOf('@');
                 if (atIndexSS !== -1) return mainPart.substring(atIndexSS + 1).split(':')[0] || '';
                 try {
-                    // 处理URL编码的base64部分
                     let base64Part = mainPart;
                     if (base64Part.includes('%')) {
                         base64Part = decodeURIComponent(base64Part);
@@ -56,9 +44,7 @@ export function extractNodeName(url) {
                     const decodedSS = atob(base64Part);
                     const ssDecodedAtIndex = decodedSS.indexOf('@');
                     if (ssDecodedAtIndex !== -1) return decodedSS.substring(ssDecodedAtIndex + 1).split(':')[0] || '';
-                } catch (e) {
-                    // Base64解码失败时的回退处理
-                }
+                } catch (e) {}
                 return '';
             default:
                 if(url.startsWith('http')) return new URL(url).hostname;
@@ -69,31 +55,29 @@ export function extractNodeName(url) {
 
 
 /**
- * 为节点链接添加名称前缀
+ * 为节点链接添加名称前缀（仅用于 UI 显示，不修改实际节点 name）
  * @param {string} link - 原始节点链接
  * @param {string} prefix - 要添加的前缀 (通常是订阅名)
- * @returns {string} - 添加了前缀的新链接
+ * @returns {string} - 添加前缀用于显示的名称，不影响实际节点 URL
  */
 export function prependNodeName(link, prefix) {
-  if (!prefix) return link; // 如果没有前缀，直接返回原链接
+    if (!prefix) return link; // 没有前缀，直接返回原链接
 
-  const hashIndex = link.lastIndexOf('#');
-  
-  // 如果链接没有 #fragment
-  if (hashIndex === -1) {
-    return `${link}#${encodeURIComponent(prefix)}`;
-  }
+    const hashIndex = link.lastIndexOf('#');
 
-  const baseLink = link.substring(0, hashIndex);
-  const originalName = decodeURIComponent(link.substring(hashIndex + 1));
-  
-  // 如果原始名称已经包含了前缀，则不再重复添加
-  if (originalName.startsWith(prefix)) {
-      return link;
-  }
+    // 如果链接没有 #fragment
+    if (hashIndex === -1) {
+        // 保留原始 name，不修改 URL，只在 UI 中显示
+        return `${link}#${encodeURIComponent(link)}`; 
+    }
 
-  const newName = `${prefix} - ${originalName}`;
-  return `${baseLink}#${encodeURIComponent(newName)}`;
+    const baseLink = link.substring(0, hashIndex);
+    const originalName = decodeURIComponent(link.substring(hashIndex + 1));
+
+    // 新增字段 _prefix 用于 UI 显示，不改变实际 node.name
+    const newDisplayName = `${prefix} - ${originalName}`;
+    // 返回原始 URL，同时在末尾添加显示前缀（可在前端 UI 用于展示）
+    return `${baseLink}#${encodeURIComponent(originalName)}|${encodeURIComponent(newDisplayName)}`;
 }
 
 /**
@@ -114,7 +98,6 @@ export function extractHostAndPort(url) {
         const mainPartEndIndex = fragmentStartIndex === -1 ? url.length : fragmentStartIndex;
         let mainPart = url.substring(protocolEndIndex + 3, mainPartEndIndex);
 
-        // --- VMess 专用处理 ---
         if (protocol === 'vmess') {
             const decodedString = atob(mainPart);
             const nodeConfig = JSON.parse(decodedString);
@@ -122,20 +105,17 @@ export function extractHostAndPort(url) {
         }
         
         let decoded = false;
-        // --- SS/SSR Base64 解码处理 ---
         if ((protocol === 'ss' || protocol === 'ssr') && mainPart.indexOf('@') === -1) {
             try {
-                // 处理URL编码的base64部分
                 let base64Part = mainPart;
                 if (base64Part.includes('%')) {
                     base64Part = decodeURIComponent(base64Part);
                 }
                 mainPart = atob(base64Part);
                 decoded = true;
-            } catch (e) { /* 解码失败则按原文处理 */ }
+            } catch (e) {}
         }
 
-        // --- SSR 解码后专门处理 ---
         if (protocol === 'ssr' && decoded) {
             const parts = mainPart.split(':');
             if (parts.length >= 2) {
@@ -143,7 +123,6 @@ export function extractHostAndPort(url) {
             }
         }
         
-        // --- 通用解析逻辑 (适用于 VLESS, Trojan, SS原文, 解码后的SS等) ---
         const atIndex = mainPart.lastIndexOf('@');
         let serverPart = atIndex !== -1 ? mainPart.substring(atIndex + 1) : mainPart;
 
