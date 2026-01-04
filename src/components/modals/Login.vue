@@ -5,22 +5,25 @@ const emit = defineEmits(['success']);
 const password = ref('');
 const isLoading = ref(false);
 const error = ref('');
-const shakeCard = ref(false); // 卡片抖动
+const shakeCard = ref(false); // 卡片抖动 + 弹跳
 const shakeInput = ref(false); // 输入框闪红
+const flashBg = ref(false); // 背景闪烁
 
 const props = defineProps({
   login: Function,
 });
 
-// 监听错误信息变化触发抖动和输入框红边
+// 监听错误信息变化触发抖动和弹跳
 watch(error, (newVal) => {
   if (newVal) {
     shakeCard.value = true;
     shakeInput.value = true;
+    flashBg.value = true;
     setTimeout(() => {
       shakeCard.value = false;
       shakeInput.value = false;
-    }, 500); // 动画持续 500ms
+      flashBg.value = false;
+    }, 600); // 动画持续 600ms
   }
 });
 
@@ -43,7 +46,13 @@ const submitLogin = async () => {
 
 <template>
   <div class="w-full min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-600 p-6">
-    <div :class="['bg-white/90 dark:bg-gray-900/80 backdrop-blur-xl rounded-3xl shadow-2xl max-w-md w-full p-10 transition-all duration-500 hover:scale-105', shakeCard ? 'shake' : '']">
+    <div 
+      :class="[
+        'bg-white/90 dark:bg-gray-900/80 backdrop-blur-xl rounded-3xl shadow-2xl max-w-md w-full p-10 transition-all duration-500 hover:scale-105',
+        shakeCard ? 'shake-bounce' : '',
+        flashBg ? 'flash-bg' : ''
+      ]"
+    >
       
       <!-- Logo & 标题 -->
       <div class="flex flex-col items-center mb-8">
@@ -67,7 +76,10 @@ const submitLogin = async () => {
             v-model="password"
             type="password"
             placeholder="请输入密码"
-            :class="['w-full pl-12 pr-4 py-4 bg-gray-100/90 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500', shakeInput ? 'shake-input' : 'focus:ring-indigo-500 dark:focus:ring-indigo-400']"
+            :class="[
+              'w-full pl-12 pr-4 py-4 bg-gray-100/90 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500',
+              shakeInput ? 'shake-input' : 'focus:ring-indigo-500 dark:focus:ring-indigo-400'
+            ]"
           >
           <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -100,7 +112,7 @@ const submitLogin = async () => {
 </template>
 
 <style scoped>
-/* 卡片悬浮阴影效果 */
+/* 卡片悬浮阴影 */
 .card-shadow {
   box-shadow: 0 10px 25px rgba(0,0,0,0.1);
 }
@@ -108,14 +120,14 @@ const submitLogin = async () => {
   box-shadow: 0 15px 35px rgba(0,0,0,0.15);
 }
 
-/* 卡片抖动动画 */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
-  20%, 40%, 60%, 80% { transform: translateX(8px); }
+/* 卡片抖动 + 弹跳动画 */
+@keyframes shake-bounce {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-6px) translateY(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(6px) translateY(-2px); }
 }
-.shake {
-  animation: shake 0.5s ease-in-out;
+.shake-bounce {
+  animation: shake-bounce 0.6s ease-in-out;
 }
 
 /* 输入框闪红动画 */
@@ -124,11 +136,21 @@ const submitLogin = async () => {
   50% { border-color: #b91c1c; }
 }
 .shake-input {
-  animation: shake-border 0.5s ease-in-out;
+  animation: shake-border 0.6s ease-in-out;
   border-width: 2px;
   border-style: solid;
   border-color: #f87171 !important;
   box-shadow: 0 0 5px rgba(248,113,113,0.5);
+}
+
+/* 背景闪烁动画 */
+@keyframes flash-bg {
+  0% { background-color: rgba(248, 113, 113, 0.1); }
+  50% { background-color: rgba(248, 113, 113, 0.2); }
+  100% { background-color: rgba(248, 113, 113, 0.1); }
+}
+.flash-bg {
+  animation: flash-bg 0.6s ease-in-out;
 }
 
 /* 输入框过渡 */
