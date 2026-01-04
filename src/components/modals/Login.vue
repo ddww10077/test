@@ -64,7 +64,7 @@ const submitLogin = async () => {
           </svg>
         </div>
         <h1 class="text-4xl font-extrabold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">现代化管理平台</h1>
-        <p class="text-gray-600 dark:text-gray-300 text-center">请使用您的密码登录访问</p>
+        <p class="text-gray-600 dark:text-gray-300 text-center">Hello world</p>
       </div>
 
       <!-- 登录表单 -->
