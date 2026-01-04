@@ -14,7 +14,7 @@ const currentYear = computed(() => new Date().getFullYear());
         class="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
       >
         澳门银河网络工作室
-      </a>.
+      </a>
       Cloud
     </p>
   </footer>
